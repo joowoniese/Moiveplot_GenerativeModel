@@ -1,0 +1,54 @@
+import torch
+from transformers import BartTokenizer, BartForConditionalGeneration
+from googletrans import Translator
+import os
+
+# GPU 설정
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+
+# 모델 및 토크나이저 로드
+model_path = "/home/joowoniese/movieplot/BART_Keyword_Model/bart_epoch100_batch16_model/"  # 저장된 모델 경로
+# tokenizer_path = "/home/joowoniese/movieplot/BART_Keyword_Tokenizer/bart_epoch100_batch16_model/"  # 저장된 토크나이저 경로
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# 로드된 모델과 토크나이저 초기화
+model = BartForConditionalGeneration.from_pretrained(model_path).to(device)
+# tokenizer = BartTokenizer.from_pretrained(tokenizer_path)  # 저장된 경로에서 로드
+tokenizer = BartTokenizer.from_pretrained("facebook/bart-base")
+
+
+# 번역기 초기화
+translator = Translator()
+
+print("Model and tokenizer loaded successfully!")
+
+def generate_overview(setence_plot):
+    model.eval()
+
+    # 입력 텍스트 생성
+    input_text = sentence_plot
+    print(f"Input: {input_text}")
+
+    # Tokenize input
+    inputs = tokenizer(input_text, return_tensors="pt", max_length=512, truncation=True)
+    input_ids = inputs["input_ids"].to(device)
+    attention_mask = inputs["attention_mask"].to(device)
+
+    # 모델로 텍스트 생성
+    with torch.no_grad():
+        outputs = model.generate(input_ids=input_ids, attention_mask=attention_mask, max_length=512, num_beams=4)
+    generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+    # 번역
+    translated_text = translator.translate(generated_text, src="en", dest="ko").text
+
+    # 출력 텍스트 반환
+    return generated_text, translated_text
+
+# 테스트 데이터 예시
+sentence_plot = "superhero, world, villain"
+
+# 테스트 실행
+generated_overview, translated_overview = generate_overview(sentence_plot)
+print(f"Generated Overview: {generated_overview}")
+print(f"Translated Overview (Korean): {translated_overview}")
